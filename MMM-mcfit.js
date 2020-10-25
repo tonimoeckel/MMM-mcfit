@@ -1,15 +1,15 @@
 function resolve(obj, path){
     var r=path.split(".");
     if(path){return resolve(obj[r.shift()], r.join("."));}
-   return obj
-  }
+    return obj
+}
 
 Module.register("MMM-mcfit", {
 
     // Module config defaults.
     defaults: {
         useHeader: true,
-        header: "McFit",
+        header: "McFit Auslastung",
         updateInterval: 10 * 60 * 1000, // 1 hour = 100 clues per call
         url: "https://www.mcfit.com/de/auslastung/antwort/request.json?tx_brastudioprofilesmcfitcom_brastudioprofiles%5BstudioId%5D=1613967360"
     },
@@ -37,11 +37,14 @@ Module.register("MMM-mcfit", {
 
         var wrapper = document.createElement("div");
         wrapper.className = "wrapper";
-        
+
         if (!this.loaded) {
             wrapper.innerHTML = "Lade...";
             return wrapper;
         }
+
+
+        wrapper.innerHTML = "";
 
         if (this.config.useHeader != false) {
             var header = document.createElement("header");
@@ -58,47 +61,21 @@ Module.register("MMM-mcfit", {
         }else {
 
             const rows = [
-                
                 {
                     keypath: 'items',
-                    text: 'Inzidenz: {{value}}',
                     default: 0,
-                    custom: (el, items) => {
+                    custom: (wrapper, items) => {
 
-                        const item = _.filter(items,{
+                        const item = _.find(items,{
                             isCurrent: true
                         })
                         const value = _.get(item,'percentage');
 
-                        if (value < 10){
-                            el.classList.add("green-dark");
-                        } else if (value < 20){
-                            el.classList.add("green");
-                        }else if (value < 25){
-                            el.classList.add("green-light");
-                        } else if (value < 35){
-                            el.classList.add("yellow");
-                        } else if (value < 50){
-                            el.classList.add("orange");
-                        } else if (value < 60){
-                            el.classList.add("orangered");
-                        } else {
-                            el.classList.add("red");
-                        }
-                        return el;
-                    }
-                    
-                },
-                {
-                    keypath: 'items',
-                    text: 'Inzidenz: {{value}}',
-                    default: 0,
-                    custom: (el, items) => {
+                        var wrapper = document.createElement("div");
 
-                        const item = _.filter(items,{
-                            isCurrent: true
-                        })
-                        const value = _.get(item,'percentage');
+                        var valueDiv = document.createElement("div");
+                        valueDiv.innerHTML = `Auslastung: ${value} %`
+                        wrapper.appendChild(valueDiv);
 
                         var target = document.createElement("canvas");
                         var opts = {
@@ -106,18 +83,18 @@ Module.register("MMM-mcfit", {
                             lineWidth: 0.55, // The line thickness
                             radiusScale: 1, // Relative radius
                             pointer: {
-                              length: 0.67, // // Relative to gauge radius
-                              strokeWidth: 0.035, // The thickness
-                              color: '#FFFFFF' // Fill color
+                                length: 0.67, // // Relative to gauge radius
+                                strokeWidth: 0.035, // The thickness
+                                color: '#FFFFFF' // Fill color
                             },
                             staticZones: [
                                 {strokeStyle: "#004e1c", min: 0, max: 5}, // Red from 100 to 130
                                 {strokeStyle: "#008000", min: 5, max: 20}, // Red from 100 to 130
-                                {strokeStyle: "#9bff00", min: 20, max: 25}, 
-                                {strokeStyle: "#ffff00", min: 25, max: 35}, 
-                                {strokeStyle: "#ffa500", min: 35, max: 50}, 
+                                {strokeStyle: "#9bff00", min: 20, max: 25},
+                                {strokeStyle: "#ffff00", min: 25, max: 35},
+                                {strokeStyle: "#ffa500", min: 35, max: 50},
                                 {strokeStyle: "#ff0000", min: 50, max: 60}
-                             ],
+                            ],
                             limitMax: false,     // If false, max value increases automatically if value > maxValue
                             limitMin: false,     // If true, the min value of the gauge will be fixed
                             colorStart: '#6FADCF',   // Colors
@@ -125,19 +102,21 @@ Module.register("MMM-mcfit", {
                             strokeColor: '#E0E0E0',  // to see which ones work best for you
                             generateGradient: true,
                             highDpiSupport: true,     // High resolution support
-                            
-                          };
-                          setTimeout(() => {
+
+                        };
+                        setTimeout(() => {
                             var gauge = new Gauge(target).setOptions(opts); // create sexy gauge!
                             gauge.maxValue = 60; // set max gauge value
                             gauge.setMinValue(0);  // Prefer setter over gauge.minValue = 0
                             gauge.animationSpeed = 32; // set animation speed (32 is default value)
                             gauge.set(value); // set actual value
-                          }, 0)
-                          
-                        return target;
+                        }, 0)
+
+
+                        wrapper.appendChild(target);
+                        return wrapper;
                     }
-                    
+
                 }
             ]
 
@@ -145,25 +124,28 @@ Module.register("MMM-mcfit", {
                 const value = window._.get(this.data,item.keypath,item.default)
                 var valueDiv = document.createElement("div");
 
-                valueDiv.innerHTML = item.text.replace("{{value}}",value);
+                if (item.text){
+                    valueDiv.innerHTML = item.text.replace("{{value}}",value);
+                }
+
                 if (item.custom){
                     valueDiv = item.custom(valueDiv, value, this.data)
                 }
 
                 wrapper.appendChild(valueDiv);
-            }) 
+            })
 
-            
+
         }
 
-        
+
         return wrapper;
     },
 
 
     processData: function(data) {
         this.data = data;
-        console.log("processData",this.data);
+
         this.loaded = true;
     },
 
@@ -174,16 +156,17 @@ Module.register("MMM-mcfit", {
             self.fetchData();
         }, this.config.updateInterval);
         this.fetchData();
-        
+
     },
 
     fetchData: function() {
-        this.sendSocketNotification('FETCH_MCFIT', this.url);
+        this.sendSocketNotification('FETCH_MCFIT', this.config.url);
     },
 
     socketNotificationReceived: function(notification, payload) {
+
         if (notification === "MCFIT_RESULT") {
-            console.log(payload);
+
             this.processData(payload);
             this.updateDom(this.config.animationSpeed);
         }

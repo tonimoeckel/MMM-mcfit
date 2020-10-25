@@ -5,7 +5,7 @@
 * Zahl der derzeitigen Auslastung
 * inkl. Chart
 
-![screenshot](https://github.com/tonimoeckel/MMM-mcfit/blob/main/screenshot/screen.png)
+![screenshot](https://github.com/tonimoeckel/MMM-mcfit/blob/main/screenshot/screenshot.png)
 
 
 ### Data Source
